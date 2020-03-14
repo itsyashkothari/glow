@@ -114,7 +114,7 @@ def sample(net, batch_size, device):
         batch_size (int): Number of samples to generate.
         device (torch.device): Device to use.
     """
-    z = torch.randn((batch_size, 3, 32, 32), dtype=torch.float32, device=device)
+    z = torch.randn((batch_size, 1, 28, 28), dtype=torch.float32, device=device)
     x, _ = net(z, reverse=True)
     x = torch.sigmoid(x)
 
@@ -176,7 +176,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=0, help='Random seed for reproducibility')
     parser.add_argument('--warm_up', default=500000, type=int, help='Number of steps for lr warm-up')
 
-    best_loss = 0
+    best_loss = 1e10
     global_step = 0
 
     main(parser.parse_args())
