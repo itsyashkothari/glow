@@ -30,12 +30,12 @@ class Glow(nn.Module):
                            mid_channels=num_channels,
                            num_levels=num_levels,
                            num_steps=num_steps)
-
+                           
     def forward(self, x, reverse=False):
         if reverse:
             sldj = torch.zeros(x.size(0), device=x.device)
         else:
-            # Expect inputs in [0, 1]
+            # Expect inpdef foruts in [0, 1]
             if x.min() < 0 or x.max() > 1:
                 raise ValueError('Expected x in [0, 1], got min/max {}/{}'
                                  .format(x.min(), x.max()))

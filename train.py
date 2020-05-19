@@ -18,6 +18,25 @@ import util
 from models import Glow
 from tqdm import tqdm
 
+def getClassifier():
+
+    
+    tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4], 'C': [1, 10, 100, 1000], 'probability':[True]}]
+    classifier = GridSearchCV(
+        SVC(), tuned_parameters,
+    )
+    classifier.fit(train_samples, train_labels)
+    return classifier
+    print('SVM:')
+    print('Training Set Accuracy: %0.3f' % np.mean(classifier.predict(train_samples) == train_labels))
+    print('Test Set Accuracy: %0.3f' % np.mean(classifier.predict(test_samples) == test_labels))
+
+    train_samples_tensor = torch.from_numpy(train_samples)
+    test_samples_tensor = torch.from_numpy(test_samples)
+
+    predicted_probabilities_train = torch.as_tensor(classifier.predict_proba(train_samples))
+    predicted_probabilities_test = torch.as_tensor(classifier.predict_proba(test_samples))
+
 
 def main(args):
     # Set up main device and scale batch size
@@ -40,10 +59,10 @@ def main(args):
         transforms.ToTensor()
     ])
 
-    trainset = torchvision.datasets.CIFAR10(root='data', train=True, download=True, transform=transform_train)
+    trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
     trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
-    testset = torchvision.datasets.CIFAR10(root='data', train=False, download=True, transform=transform_test)
+    testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
     testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
     # Model
@@ -69,7 +88,8 @@ def main(args):
         start_epoch = checkpoint['epoch']
         global_step = start_epoch * len(trainset)
 
-    loss_fn = util.NLLLoss().to(device)
+    loss_fn = util.NLLLoss2(784,10).to(device)
+    # loss_fn = util.NLLLoss().to(device)
     optimizer = optim.Adam(net.parameters(), lr=args.lr)
     scheduler = sched.LambdaLR(optimizer, lambda s: min(1., s / args.warm_up))
 
@@ -86,11 +106,12 @@ def train(epoch, net, trainloader, device, optimizer, scheduler, loss_fn, max_gr
     net.train()
     loss_meter = util.AverageMeter()
     with tqdm(total=len(trainloader.dataset)) as progress_bar:
-        for x, _ in trainloader:
+        for x, y in trainloader:
             x = x.to(device)
             optimizer.zero_grad()
             z, sldj = net(x, reverse=False)
-            loss = loss_fn(z, sldj)
+            loss = loss_fn(z, sldj,y)
+            # loss = loss_fn(z, sldj,y)
             loss_meter.update(loss.item(), x.size(0))
             loss.backward()
             if max_grad_norm > 0:
@@ -127,10 +148,11 @@ def test(epoch, net, testloader, device, loss_fn, num_samples):
     net.eval()
     loss_meter = util.AverageMeter()
     with tqdm(total=len(testloader.dataset)) as progress_bar:
-        for x, _ in testloader:
+        for x, y in testloader:
             x = x.to(device)
             z, sldj = net(x, reverse=False)
-            loss = loss_fn(z, sldj)
+            loss = loss_fn(z, sldj,y)
+            # loss = loss_fn(z, sldj)
             loss_meter.update(loss.item(), x.size(0))
             progress_bar.set_postfix(nll=loss_meter.avg,
                                      bpd=util.bits_per_dim(x, loss_meter.avg))
